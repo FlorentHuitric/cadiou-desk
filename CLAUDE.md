@@ -50,7 +50,7 @@ sh scripts/smoke.sh http://localhost:30080
 
 ## Avant de dire « fini »
 - Compose : `docker compose ps` montre les trois services `running`, `docker compose logs --tail=50` sans erreur, pytest et smoke verts.
-- Kubernetes : pod `Running` et `3/3` Ready, logs de chaque conteneur sans erreur, smoke vert sur le NodePort.
+- Kubernetes : pod `Running` et `3/3` Ready, logs de chaque conteneur sans erreur, smoke vert sur `localhost:30080`. Après un build, charger les images dans le nœud (voir SPEC.md §9) avant `kubectl apply`.
 - `Exited`, `Restarting` ou `CrashLoopBackOff` = échec.
 - Vérifier le code de retour de chaque commande, pas seulement sa sortie.
 

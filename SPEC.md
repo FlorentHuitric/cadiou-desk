@@ -95,10 +95,11 @@ Images épinglées : `python:3.12-slim`, `nginx:1.27-alpine`, `redis:7.4-alpine`
 **J2, Kubernetes** (contexte `docker-desktop`) :
 - Un Deployment, 1 réplique, stratégie `Recreate`, avec 3 conteneurs : `web`, `api`, `redis`. Ils se parlent par `127.0.0.1`.
 - PVC `redis-data` monté sur `/data` du conteneur redis (storage class par défaut de Docker Desktop).
-- Secret `cadiou-desk` portant `DESK_KEY`. Seul `secret.example.yaml` est versionné.
+- Secret `cadiou-desk` portant `DESK_KEY`, créé avec `kubectl create secret generic cadiou-desk --from-env-file=.env`. Seul `k8s/secret.example` (sans extension `.yaml`, pour que `kubectl apply -f k8s/` ne l'applique jamais) est versionné.
 - Readiness sur `/api/healthz` (via `web`), liveness sur `redis-cli ping`.
-- Service NodePort `30080` → port 80 du conteneur `web`.
-- Images `cadiou-desk-api:0.1.0` et `cadiou-desk-web:0.1.0` construites localement, `imagePullPolicy: IfNotPresent`. À vérifier au début de J2 : Docker Desktop en mode kubeadm (images partagées avec le moteur). Sinon, choisir un autre chemin de chargement avant d'aller plus loin.
+- Service `LoadBalancer` sur le port `30080` → port 80 du conteneur `web`. Le cluster Docker Desktop est de type kind : les NodePorts n'y sont pas publiés sur localhost, les LoadBalancers le sont (constaté).
+- Images `cadiou-desk-api:0.1.0` et `cadiou-desk-web:0.1.0` construites localement, `imagePullPolicy: IfNotPresent`. Le nœud kind a son propre containerd, il ne voit pas les images du moteur Docker : après chaque build, les charger avec `docker save <image> | docker exec -i desktop-control-plane ctr -n k8s.io images import -`.
+- Le pod est le fichier `k8s/pod.yaml` (un Deployment), avec `k8s/service.yaml` et `k8s/pvc.yaml`.
 
 ## 10. Tests
 - **pytest** : logique de la file (priorité, FIFO, abandon, no-show, fermeture de guichet, estimation, atomicité de l'appel), contre un vrai Redis lancé en conteneur par compose. Commande : `docker compose run --rm api pytest`.
@@ -107,7 +108,7 @@ Images épinglées : `python:3.12-slim`, `nginx:1.27-alpine`, `redis:7.4-alpine`
 ## 11. Critères de réussite
 **J1** : `docker compose up --build -d`, les trois services `running`/`healthy` dans `docker compose ps`, logs sans erreur, `pytest` vert, smoke vert. Après `docker compose restart`, la file est intacte.
 
-**J2** : `kubectl apply -f k8s/`, le pod `Running` avec `3/3` Ready, smoke vert sur le NodePort. Après `kubectl delete pod`, le pod revient et la file est intacte.
+**J2** : `kubectl apply -f k8s/`, le pod `Running` avec `3/3` Ready, smoke vert sur `localhost:30080`. Après `kubectl delete pod`, le pod revient et la file est intacte.
 
 ## 12. Limites connues
 - Une seule réplique d'API : le balayage no-show n'est pas verrouillé.

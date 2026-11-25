@@ -224,6 +224,97 @@ export function createWorld(canvas, { onPick }) {
     else setRing(p, w.priority ? 0xf59e0b : null, false);
   }
 
+  // --- agent de sécurité : patrouille et tire des fléchettes en mousse sur des clients ---
+  // Effet purement visuel : il ne touche ni à l'API ni à la file.
+  const guard = person(0x14306b, SKINS[1]);
+  const navy = mat(0x14306b, 0.6), dark = mat(0x111111, 0.5);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 0.13, 20), navy); cap.position.y = 1.52;
+  const brim = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.22), navy); brim.position.set(0, 1.45, 0.2);
+  const stache = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.04, 0.04), dark); stache.position.set(0, 1.28, 0.2);
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.3), dark); gun.position.set(0.3, 0.85, 0.22);
+  guard.userData.inner.add(cap, brim, stache, gun);
+  const guardLabel = sprite("AGENT", [1.0, 0.4], { bg: "rgba(20,48,107,.95)", w: 160, h: 64, size: 34 });
+  guardLabel.position.y = 2.05;
+  const bang = sprite("PAN !", [1.2, 0.55], { bg: "rgba(250,204,21,.95)", fg: "#111", w: 192, h: 80, size: 44 });
+  bang.position.y = 2.7; bang.visible = false;
+  guard.add(guardLabel, bang);
+  guard.position.set(-7, 0, 2.8);
+  scene.add(guard);
+
+  const PATROL = [new THREE.Vector3(-7, 0, 2.8), new THREE.Vector3(7, 0, 2.8)];
+  const G = { state: "patrol", wp: 1, timer: 4, target: null };
+  const darts = [], puffs = [];
+  const dartGeo = new THREE.SphereGeometry(0.08, 10, 8);
+  const dartMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+  const starTex = labelTexture("★", { bg: "rgba(0,0,0,0)", fg: "#facc15", w: 64, h: 64, size: 52 });
+
+  const turn = (g, angle, k) => {
+    let da = angle - g.rotation.y;
+    g.rotation.y += Math.atan2(Math.sin(da), Math.cos(da)) * Math.min(1, k);
+  };
+
+  function fire(p) {
+    const d = new THREE.Mesh(dartGeo, dartMat);
+    d.position.copy(guard.position);
+    d.position.y += 0.85;
+    d.position.x += Math.sin(guard.rotation.y) * 0.45;
+    d.position.z += Math.cos(guard.rotation.y) * 0.45;
+    scene.add(d);
+    darts.push({ mesh: d, p });
+  }
+
+  function hit(p) {
+    p.hit = 0.7;
+    for (let i = 0; i < 6; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, transparent: true, depthTest: false }));
+      s.scale.setScalar(0.35);
+      s.position.copy(p.g.position); s.position.y += 1.3;
+      scene.add(s);
+      const a = (i / 6) * Math.PI * 2;
+      puffs.push({ s, v: new THREE.Vector3(Math.cos(a) * 1.6, 2 + Math.random(), Math.sin(a) * 1.6), life: 0.7 });
+    }
+  }
+
+  function guardTick(dt, t) {
+    if (G.state === "patrol") {
+      tmp.subVectors(PATROL[G.wp], guard.position); tmp.y = 0;
+      const d = tmp.length();
+      if (d < 0.1) G.wp = 1 - G.wp;
+      else { guard.position.addScaledVector(tmp, Math.min(d, 1.4 * dt) / d); turn(guard, Math.atan2(tmp.x, tmp.z), dt * 8); }
+      if ((G.timer -= dt) <= 0) {
+        const pool = [...people.values()].filter((p) => !p.leaving);
+        if (pool.length) { G.target = pool[Math.floor(Math.random() * pool.length)]; G.state = "aim"; G.timer = 0.7; }
+        else G.timer = 2;
+      }
+    } else if (G.state === "aim") {
+      if (!people.has(G.target.n)) { G.state = "patrol"; G.timer = 2; }
+      else {
+        tmp.subVectors(G.target.g.position, guard.position); tmp.y = 0;
+        turn(guard, Math.atan2(tmp.x, tmp.z), dt * 10);
+        if ((G.timer -= dt) <= 0) { fire(G.target); G.state = "recover"; G.timer = 0.8; bang.visible = true; }
+      }
+    } else if ((G.timer -= dt) <= 0) {
+      bang.visible = false; G.state = "patrol"; G.timer = 4 + Math.random() * 5;
+    }
+    guard.userData.inner.position.y = G.state === "patrol" && !reduced ? Math.abs(Math.sin(t * 7)) * 0.05 : 0;
+
+    for (const d of [...darts]) {
+      tmp.copy(d.p.g.position); tmp.y += 0.8; tmp.sub(d.mesh.position);
+      const dist = tmp.length();
+      if (!people.has(d.p.n) || dist < 0.25) {
+        if (people.has(d.p.n)) hit(d.p);
+        scene.remove(d.mesh); darts.splice(darts.indexOf(d), 1);
+      } else d.mesh.position.addScaledVector(tmp, Math.min(dist, 18 * dt) / dist);
+    }
+    for (const f of [...puffs]) {
+      f.life -= dt;
+      f.v.y -= 6 * dt;
+      f.s.position.addScaledVector(f.v, dt);
+      f.s.material.opacity = Math.max(f.life, 0) / 0.7;
+      if (f.life <= 0) { scene.remove(f.s); f.s.material.dispose(); puffs.splice(puffs.indexOf(f), 1); }
+    }
+  }
+
   // --- API publique ---
   function sync({ desks: deskState, people: wants }) {
     if (!nDesks) { nDesks = deskState.length; buildDesks(nDesks); }
@@ -341,9 +432,17 @@ export function createWorld(canvas, { onPick }) {
         da = Math.atan2(Math.sin(da), Math.cos(da));
         p.g.rotation.y += da * Math.min(1, dt * 6);
       }
-      p.g.userData.inner.position.y = p.moving && !reduced ? Math.abs(Math.sin(t * 9 + p.phase)) * 0.07 : 0;
+      let hop = 0;
+      if (p.hit > 0) {                                           // touché par une fléchette : saute et pirouette
+        p.hit -= dt;
+        const k = 1 - Math.max(p.hit, 0) / 0.7;
+        hop = Math.sin(k * Math.PI) * 0.6;
+        p.g.userData.inner.rotation.y = p.hit > 0 ? k * Math.PI * 2 : 0;
+      }
+      p.g.userData.inner.position.y = hop + (p.moving && !reduced ? Math.abs(Math.sin(t * 9 + p.phase)) * 0.07 : 0);
       if (p.ring.visible) p.ring.material.opacity = p.pulse && !reduced ? 0.5 + 0.5 * Math.sin(t * 6) : 1;
     }
+    guardTick(dt, t);
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }

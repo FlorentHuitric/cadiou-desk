@@ -1,0 +1,48 @@
+# Un seul pod, trois conteneurs qui se parlent par 127.0.0.1.
+# C'est un Deployment à 1 réplique (et non un Pod nu) pour que le pod revienne après un `kubectl delete pod`.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cadiou-desk
+  labels: { app: cadiou-desk }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # le volume Redis n'accepte qu'un pod à la fois
+  selector:
+    matchLabels: { app: cadiou-desk }
+  template:
+    metadata:
+      labels: { app: cadiou-desk }
+    spec:
+      containers:
+        - name: web
+          image: cadiou-desk-web:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          env:
+            - { name: API_UPSTREAM, value: "127.0.0.1:8000" }
+          readinessProbe:          # passe par nginx, l'API et Redis : le pod n'est Ready que si toute la chaîne répond
+            httpGet: { path: /api/healthz, port: 80 }
+            periodSeconds: 5
+        - name: api
+          image: cadiou-desk-api:0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: REDIS_URL, value: "redis://127.0.0.1:6379" }
+            - name: DESK_KEY
+              valueFrom:
+                secretKeyRef: { name: cadiou-desk, key: DESK_KEY }
+          livenessProbe:
+            tcpSocket: { port: 8000 }
+            periodSeconds: 10
+        - name: redis
+          image: redis:7.4-alpine
+          command: ["redis-server", "--appendonly", "yes"]
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          livenessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: redis-data }

@@ -1,0 +1,11 @@
+# LoadBalancer et non NodePort : sur Docker Desktop (cluster de type kind), les NodePorts ne sont pas
+# publiés sur localhost, alors que les LoadBalancers le sont, sur le port du Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cadiou-desk
+spec:
+  type: LoadBalancer
+  selector: { app: cadiou-desk }
+  ports:
+    - { port: 30080, targetPort: 80 }

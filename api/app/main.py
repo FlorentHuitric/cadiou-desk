@@ -22,7 +22,14 @@ def create_app():
 
     @asynccontextmanager
     async def lifespan(app):
-        await asyncio.to_thread(q.init_desks)
+        for _ in range(30):
+            try:
+                await asyncio.to_thread(q.init_desks)
+                break
+            except redis.ConnectionError:
+                await asyncio.sleep(1)  # pod : Redis démarre en même temps que l'API
+        else:
+            await asyncio.to_thread(q.init_desks)  # abandonne avec la vraie erreur
 
         async def sweeper():
             while True:
