@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cadiou Desk</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><h1>Cadiou Desk</h1><span id="live" class="off">hors ligne</span></header>
+
+  <section id="visitor">
+    <h2>Visiteur</h2>
+    <p id="size"></p>
+    <button id="take">Prendre un ticket</button>
+    <div id="mine" hidden>
+      <p class="num">N° <b id="n"></b></p>
+      <p id="state"></p>
+      <button id="cancel">Annuler mon ticket</button>
+    </div>
+  </section>
+
+  <section id="agent">
+    <h2>Agent</h2>
+    <label>Clé <input id="key" type="password" autocomplete="off"></label>
+    <label>Prioriser le ticket <input id="prio" type="number" min="1"></label>
+    <button id="prioBtn">Passage prioritaire</button>
+    <div id="desks"></div>
+    <p id="err" role="alert"></p>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
