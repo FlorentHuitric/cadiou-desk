@@ -5,30 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cadiou Desk</title>
   <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js" } }</script>
 </head>
 <body>
-  <header><h1>Cadiou Desk</h1><span id="live" class="off">hors ligne</span></header>
+<div class="app">
+  <header class="top">
+    <h1>Cadiou Desk</h1>
+    <ul class="chips" aria-label="Résumé">
+      <li>File <b id="c-queue">0</b></li>
+      <li>Guichets ouverts <b id="c-open">0</b></li>
+      <li>En service <b id="c-serving">0</b></li>
+    </ul>
+    <span id="live" class="pill off">hors ligne</span>
+  </header>
 
-  <section id="visitor">
-    <h2>Visiteur</h2>
-    <p id="size"></p>
-    <button id="take">Prendre un ticket</button>
-    <div id="mine" hidden>
-      <p class="num">N° <b id="n"></b></p>
-      <p id="state"></p>
-      <button id="cancel">Annuler mon ticket</button>
-    </div>
-  </section>
+  <main class="stage">
+    <canvas id="scene" role="img" aria-label="Salle d'attente en 3D"></canvas>
+    <ul class="legend" aria-hidden="true">
+      <li><i style="--c:#f59e0b"></i>prioritaire</li>
+      <li><i style="--c:#fbbf24"></i>appelé</li>
+      <li><i style="--c:#22c55e"></i>au guichet</li>
+      <li><i style="--c:#38bdf8"></i>sélectionné</li>
+    </ul>
+    <p id="toast" role="status" hidden></p>
+  </main>
 
-  <section id="agent">
-    <h2>Agent</h2>
-    <label>Clé <input id="key" type="password" autocomplete="off"></label>
-    <label>Prioriser le ticket <input id="prio" type="number" min="1"></label>
-    <button id="prioBtn">Passage prioritaire</button>
-    <div id="desks"></div>
-    <p id="err" role="alert"></p>
-  </section>
+  <aside class="panel">
+    <section>
+      <h2>Arrivées</h2>
+      <div class="row">
+        <button id="arrive" class="primary">Faire arriver un client</button>
+        <button id="arrive-prio">Arrivée prioritaire</button>
+      </div>
+      <p class="hint">Le client prend son ticket à la borne puis rejoint la file. Cliquez sur une personne dans la salle pour la sélectionner.</p>
+    </section>
 
-  <script src="app.js"></script>
+    <section>
+      <h2>Guichets</h2>
+      <div id="desks" class="desks"></div>
+    </section>
+
+    <section id="sel" hidden>
+      <h2>Client sélectionné</h2>
+      <div id="sel-body"></div>
+    </section>
+
+    <section>
+      <h2>Journal</h2>
+      <ol id="log" class="log" role="log" aria-live="polite"></ol>
+    </section>
+
+    <details id="keybox">
+      <summary>Clé agent</summary>
+      <p class="hint">Nécessaire pour ouvrir, fermer, appeler et prioriser. Elle reste dans ce navigateur.</p>
+      <input id="key" type="password" autocomplete="off" placeholder="valeur de DESK_KEY" aria-label="Clé agent">
+    </details>
+  </aside>
+</div>
+<script type="module" src="app.js"></script>
 </body>
 </html>

@@ -222,6 +222,19 @@ def test_snapshot_and_queue_view(client, q):
     assert [d["status"] for d in snap["desks"]] == ["open", "closed"]
 
 
+def test_snapshot_lists_waiting_and_desk_tickets(client, q):
+    for _ in range(3):
+        take(client)
+    open_desk(client)
+    post(client, "/desks/1/call-next")  # ticket 1 appelé
+    post(client, "/tickets/3/prioritize")
+    snap = q.snapshot()
+    assert snap["waiting"] == [{"number": 3, "priority": True}, {"number": 2, "priority": False}]
+    assert snap["at_desks"] == [{"desk": 1, "number": 1, "status": "called", "priority": False}]
+    post(client, "/desks/1/start")
+    assert q.snapshot()["at_desks"][0]["status"] == "serving"
+
+
 def test_every_change_publishes_an_event(client, q):
     ps = q.r.pubsub(ignore_subscribe_messages=True)
     ps.subscribe("events")

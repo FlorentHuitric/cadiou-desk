@@ -75,7 +75,8 @@ Codes d'erreur : 404 ticket ou guichet inconnu, 409 transition interdite, 401 cl
 - Un commentaire `: ping` toutes les 15 s garde la connexion ouverte.
 - nginx, sur `location /api/events` : `proxy_buffering off`, `proxy_read_timeout 1h`, `proxy_http_version 1.1`, `Connection ""`.
 - Le front (`EventSource`) se reconnecte seul et réaffiche le `snapshot`.
-- Deux écrans dans le front : visiteur (prendre un ticket, voir position, annuler) et agent (clé saisie une fois, boutons de guichet).
+- Le `snapshot` et les `update` ont la forme `{queue, desks, waiting, at_desks}` : `waiting` liste tous les tickets en attente dans l'ordre (`{number, priority}`), `at_desks` les tickets tenus par un guichet (`{desk, number, status, priority}`).
+- Le front est un simulateur three.js (sans build, three épinglé dans l'image web) : salle 3D avec borne de tickets, file, guichets, entrée et sortie. Il dessine l'état de l'API et ne simule rien lui-même. L'opérateur fait arriver les clients, ouvre et ferme les guichets, appelle, démarre et termine ; un clic sur une personne permet de la prioriser ou de la faire abandonner. La clé agent se saisit une fois (stockée dans le navigateur).
 
 ## 8. Configuration
 | Variable | Défaut | Rôle |

@@ -214,7 +214,16 @@ class Queue:
                     next=[dict(number=int(n), priority=s < SCORE_CLASS) for n, s in nxt])
 
     def snapshot(self):
-        return dict(queue=self.queue(), desks=self.desks())
+        # waiting et at_desks permettent au front de dessiner chaque personne sans requête par ticket
+        desks = self.desks()
+        waiting = self.r.zrange("queue", 0, -1, withscores=True)
+        at_desks = []
+        for d in desks:
+            if d["ticket"] is not None:
+                status, prio = self.r.hmget(f"ticket:{d['ticket']}", "status", "priority")
+                at_desks.append(dict(desk=d["id"], number=d["ticket"], status=status, priority=prio == "1"))
+        return dict(queue=self.queue(), desks=desks, at_desks=at_desks,
+                    waiting=[dict(number=int(n), priority=s < SCORE_CLASS) for n, s in waiting])
 
     def sweep(self, now=None):
         n = self._s["sweep"](args=[str(now or time.time())])
