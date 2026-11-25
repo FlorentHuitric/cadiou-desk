@@ -1,0 +1,22 @@
+# J1 en cours : le service web (nginx) sera ajouté avec le front.
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  api:
+    build: ./api
+    environment:
+      REDIS_URL: redis://redis:6379
+      DESK_KEY: ${DESK_KEY:?DESK_KEY manquante, voir .env.example}
+    depends_on:
+      redis:
+        condition: service_healthy
+volumes:
+  redis-data:

@@ -1,0 +1,6 @@
+fastapi==0.115.6
+uvicorn==0.34.0
+redis==5.2.1
+# tests : même image pour lancer pytest dans le conteneur api (SPEC §10)
+pytest==8.3.4
+httpx==0.28.1
