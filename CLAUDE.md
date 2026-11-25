@@ -7,7 +7,8 @@ Guichet à file d'attente virtuelle : nginx (front statique + proxy), API FastAP
 - `api/tests/` : pytest.
 - `web/` : front statique (`index.html`, `app.js`, `style.css`) et `nginx.conf.template`.
 - `k8s/` : manifestes du jalon J2.
-- `scripts/smoke.sh` : test de bout en bout par curl.
+- `scripts/smoke.sh` : test de bout en bout par curl (pas encore écrit).
+- `.github/workflows/ci.yml` : à chaque push sur `main` et chaque PR, pytest, build des images, démarrage du compose, POST puis GET. Les images ne sont pas publiées.
 
 ## Règles de conception
 - Redis est la seule source de vérité. Aucun état de file en mémoire dans l'API, sauf la tâche de balayage no-show qui relit `called`.

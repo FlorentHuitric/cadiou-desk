@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cadiou Desk</title>
   <link rel="stylesheet" href="style.css">
-  <script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js" } }</script>
 </head>
 <body>
 <div class="app">
@@ -22,10 +21,10 @@
   <main class="stage">
     <canvas id="scene" role="img" aria-label="Salle d'attente en 3D"></canvas>
     <ul class="legend" aria-hidden="true">
-      <li><i style="--c:#f59e0b"></i>prioritaire</li>
-      <li><i style="--c:#fbbf24"></i>appelé</li>
-      <li><i style="--c:#22c55e"></i>au guichet</li>
-      <li><i style="--c:#38bdf8"></i>sélectionné</li>
+      <li><i class="prio"></i>prioritaire</li>
+      <li><i class="called"></i>appelé</li>
+      <li><i class="serving"></i>au guichet</li>
+      <li><i class="picked"></i>sélectionné</li>
     </ul>
     <p id="toast" role="status" hidden></p>
   </main>

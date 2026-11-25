@@ -80,15 +80,26 @@ function onSnapshot(s) {
 }
 
 async function leave(n) {
-  const r = await fetch(`/api/tickets/${n}`);
-  const status = r.ok ? (await r.json()).status : "done";
+  let status = "gone";  // ticket introuvable ou API injoignable : il repart sans commentaire
+  try {
+    const r = await fetch(`/api/tickets/${n}`);
+    if (r.ok) status = (await r.json()).status;
+  } catch {}
   world.leave(n, status);
-  log({ done: `N° ${n} servi, il repart`, cancelled: `N° ${n} a abandonné la file`,
-    no_show: `N° ${n} absent à l'appel, ticket perdu` }[status] ?? `N° ${n} est parti`);
+  const msg = { done: `N° ${n} servi, il repart`, cancelled: `N° ${n} a abandonné la file`,
+    no_show: `N° ${n} absent à l'appel, ticket perdu` }[status];
+  if (msg) log(msg);
 }
 
 // --- guichets ---
+let desksSig = "";
 function renderDesks() {
+  // ne reconstruit que si un guichet a changé : sinon le focus clavier saute à chaque événement
+  const sig = JSON.stringify([snap.desks, snap.at_desks, snap.waiting.length === 0]);
+  if (sig === desksSig) return;
+  desksSig = sig;
+  const focused = document.activeElement?.closest?.(".desk");
+  const focusDesk = focused ? [...$("desks").children].indexOf(focused) : -1;
   const atDesk = new Map(snap.at_desks.map((t) => [t.desk, t]));
   $("desks").replaceChildren(...snap.desks.map((d) => {
     const t = atDesk.get(d.id), open = d.status === "open";
@@ -106,19 +117,28 @@ function renderDesks() {
       h("div", { className: "desk-head" }, `Guichet ${d.id}`, h("span", { className: `badge ${badge[1]}`, textContent: badge[0] })),
       row);
   }));
+  if (focusDesk >= 0) $("desks").children[focusDesk]?.querySelector("button")?.focus();  // le bouton principal du même guichet
 }
 
 // --- arrivées ---
 async function arrive(priority) {
+  if (priority && !$("key").value) {
+    toast("Clé agent requise pour une arrivée prioritaire");
+    $("keybox").open = true; $("key").focus();
+    return;
+  }
   const t = await call("POST", "/tickets");
-  if (t && priority) await call("POST", `/tickets/${t.number}/prioritize`);
+  // priorisation refusée (clé fausse) : on retire le ticket plutôt que de laisser un client normal
+  if (t && priority && !(await call("POST", `/tickets/${t.number}/prioritize`))) await call("DELETE", `/tickets/${t.number}`);
 }
 $("arrive").onclick = () => arrive(false);
 $("arrive-prio").onclick = () => arrive(true);
 
 // --- sélection d'un client ---
+let selSig = "";
 function select(n) {
   selected = n;
+  selSig = "";
   world.select(n);
   refreshSel();
 }
@@ -127,10 +147,14 @@ async function refreshSel() {
   const n = selected;
   $("sel").hidden = n === null;
   if (n === null) return;
-  const r = await fetch(`/api/tickets/${n}`);
+  let r;
+  try { r = await fetch(`/api/tickets/${n}`); } catch { return; }
   if (selected !== n) return;  // la sélection a changé pendant la requête
   if (!r.ok) return select(null);
   const t = await r.json();
+  const sig = JSON.stringify(t);
+  if (sig === selSig) return;  // rien n'a changé : on garde le focus
+  selSig = sig;
   const rows = [["Statut", STATUS[t.status]]];
   if (t.status === "waiting") {
     rows.push(["Position", t.position],
@@ -143,7 +167,7 @@ async function refreshSel() {
   const actions = h("div", { className: "row" });
   if (t.status === "waiting" && !t.priority) actions.append(h("button", { textContent: "Passage prioritaire", onclick: () => call("POST", `/tickets/${n}/prioritize`) }));
   if (["waiting", "called"].includes(t.status)) actions.append(h("button", { className: "danger", textContent: "Faire abandonner", onclick: () => call("DELETE", `/tickets/${n}`) }));
-  $("sel-body").replaceChildren(h("p", { innerHTML: `<b>N° ${n}</b>` }), dl, actions);
+  $("sel-body").replaceChildren(h("p", {}, h("b", { textContent: `N° ${n}` })), dl, actions);
 }
 
 // --- temps réel ---

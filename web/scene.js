@@ -1,5 +1,5 @@
 // Scène 3D : la salle d'attente. Elle ne décide de rien, elle dessine l'état renvoyé par l'API.
-import * as THREE from "three";
+import * as THREE from "/vendor/three.module.min.js";
 
 const COLS = 9, DX = 1.5, DZ = 1.4, ROW0_Z = -0.8;          // places de la file (serpentin)
 const DOOR_IN = new THREE.Vector3(-13.2, 0, 5);
@@ -336,7 +336,7 @@ export function createWorld(canvas, { onPick }) {
     if (!p || p.leaving) return;
     p.leaving = true;
     p.route = DOOR_OUT.map((pos) => ({ pos }));
-    setRing(p, outcome === "done" ? 0x22c55e : 0xef4444, false);
+    setRing(p, outcome === "done" ? 0x22c55e : outcome === "gone" ? null : 0xef4444, false);
   }
 
   function select(n) {
@@ -391,16 +391,18 @@ export function createWorld(canvas, { onPick }) {
 
   let last = performance.now(), camX = 0;
   const dir = new THREE.Vector3(0, 0.62, 0.78).normalize();
-  let winStart = performance.now(), winFrames = 0;
+  let winStart = performance.now(), winFrames = 0, resetWin = false;
+  // onglet masqué : requestAnimationFrame s'arrête, la fenêtre de mesure serait faussée
+  document.addEventListener("visibilitychange", () => { resetWin = true; });
   function frame(now) {
     const dt = Math.min((now - last) / 1000, 0.2), t = now / 1000;
     last = now;
     // rendu logiciel ou GPU faible : sous 24 i/s, on passe en pixel ratio 1 (une seule fois)
     winFrames++;
-    if (now - winStart > 1500) {
+    if (now - winStart > 1500 && !resetWin) {
       if (winFrames / ((now - winStart) / 1000) < 24 && renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); resize(); }
       winStart = now; winFrames = 0;
-    }
+    } else if (resetWin) { winStart = now; winFrames = 0; resetWin = false; }
     camX += ((reduced ? 0 : pointer.x * 1.5) - camX) * Math.min(1, dt * 3);
     camera.position.copy(LOOK).addScaledVector(dir, camera.userData.dist ?? 21);
     camera.position.x += camX;

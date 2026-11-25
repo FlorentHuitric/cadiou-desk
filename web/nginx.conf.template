@@ -4,6 +4,9 @@ server {
 
     location / {
         add_header Cache-Control "no-cache";
+        # tout est servi par nous : aucun script, style ni connexion externe, aucun script ou style en ligne
+        add_header Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+        add_header X-Content-Type-Options "nosniff";
     }
 
     location /api/ {

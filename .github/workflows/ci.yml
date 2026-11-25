@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      DESK_KEY: ci-only-key   # clé jetable, valable seulement sur ce runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tests (pytest contre un vrai Redis)
+        run: docker compose run --rm --build api pytest -q
+
+      - name: Construire les images
+        run: |
+          docker build -t cadiou-desk-api:0.1.0 api
+          docker build -t cadiou-desk-web:0.1.0 web
+
+      - name: Démarrer la stack et vérifier un POST puis un GET
+        run: |
+          docker compose up -d --build --wait
+          curl -fsS http://localhost:8080/api/healthz
+          n=$(curl -fsS -X POST http://localhost:8080/api/tickets | sed -E 's/.*"number":([0-9]+).*/\1/')
+          curl -fsS "http://localhost:8080/api/tickets/$n"
+
+      - name: Logs (en cas d'échec)
+        if: failure()
+        run: docker compose logs --tail=80
+
+      - name: Nettoyer
+        if: always()
+        run: docker compose down -v
